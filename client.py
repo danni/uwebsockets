@@ -12,29 +12,26 @@ import uasyncio as asyncio
 
 from .protocol import Websocket
 
-# logging.basicConfig(logging.DEBUG)
+LOGGER = logging.getLogger(__name__)
 
 
 class WebsocketClient(Websocket):
     is_client = True
 
 
-async def connect(uri, *, loop=None):
+async def connect(uri):
     """Connect a websocket."""
-
-    if loop is None:
-        loop = asyncio.get_event_loop()
 
     uri = urllib.parse.urlparse(uri)
 
     assert uri.scheme == 'ws'
 
-    print("open connection", uri.hostname, uri.port)
+    if __debug__: LOGGER.debug("open connection %s:%s", uri.hostname, uri.port)
+
     reader, writer = await asyncio.open_connection(uri.hostname, uri.port)
-    print(reader, writer)
 
     async def send_header(header, *args):
-        print(header % args)
+        if __debug__: LOGGER.debug(header, *args)
         await writer.awrite(header % args + '\r\n')
 
     await send_header(b'GET %s HTTP/1.1', uri.path)
@@ -48,16 +45,12 @@ async def connect(uri, *, loop=None):
     await send_header(b'Origin: http://localhost')
     await send_header(b'')
 
-    print("Awaiting response")
-
     header = await reader.readline()
     assert header == b'HTTP/1.1 101 Switching Protocols\r\n'
 
     # We don't (currently) need these headers
     while header.strip():
-        print(header)
+        if __debug__: LOGGER.debug(header)
         header = await reader.readline()
-
-    print("!")
 
     return WebsocketClient(reader, writer)
