@@ -10,19 +10,13 @@ import urllib.parse
 
 import uasyncio as asyncio
 
+from .protocol import Websocket
+
 # logging.basicConfig(logging.DEBUG)
 
 
-class Websocket:
-    def __init__(self, reader, writer):
-        self.reader = reader
-        self.writer = writer
-
-    async def recv(self):
-        return await self.reader.read()
-
-    async def send(self, buf):
-        return await self.writer.awrite(buf)
+class WebsocketClient(Websocket):
+    is_masked = is_client = True
 
 
 async def connect(uri, *, loop=None):
@@ -49,7 +43,7 @@ async def connect(uri, *, loop=None):
     await send_header(b'Upgrade: websocket')
     # FIXME: generate a useful key
     await send_header(b'Sec-WebSocket-Key: %s', 'x3JJHMbDL1EzLkh9GBhXDw==')
-    await send_header(b'Sec-WebSocket-Protocol: chat')
+    # await send_header(b'Sec-WebSocket-Protocol: chat')
     await send_header(b'Sec-WebSocket-Version: 13')
     await send_header(b'Origin: http://localhost')
     await send_header(b'')
@@ -66,4 +60,4 @@ async def connect(uri, *, loop=None):
 
     print("!")
 
-    return Websocket(reader, writer)
+    return WebsocketClient(reader, writer)
