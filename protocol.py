@@ -5,12 +5,12 @@ Websockets protocol
 import struct
 
 # Opcodes
-OP_CONT = 0x0
-OP_TEXT = 0x1
-OP_BYTES = 0x2
-OP_CLOSE = 0x8
-OP_PING = 0x9
-OP_PONG = 0xa
+OP_CONT = const(0x0)
+OP_TEXT = const(0x1)
+OP_BYTES = const(0x2)
+OP_CLOSE = const(0x8)
+OP_PING = const(0x9)
+OP_PONG = const(0xa)
 
 
 class Websocket:
@@ -32,8 +32,8 @@ class Websocket:
         byte1, byte2 = struct.unpack('!BB', await self.reader.read(2))
 
         # Byte 1: FIN(1) _(1) _(1) _(1) OPCODE(4)
-        fin = bool(byte1 & (1 << 7))
-        opcode = byte1 & 0xf
+        fin = bool(byte1 & 0x80)
+        opcode = byte1 & 0x0f
 
         # Byte 2: MASK(1) LENGTH(7)
         mask = bool(byte2 & (1 << 7))
@@ -69,11 +69,11 @@ class Websocket:
 
         # Frame header
         # Byte 1: FIN(1) _(1) _(1) _(1) OPCODE(4)
-        byte1 = 1 << 7 if fin else 0
+        byte1 = 0x80 if fin else 0
         byte1 |= opcode
 
         # Byte 2: MASK(1) LENGTH(7)
-        byte2 = 1 << 7 if mask else 0
+        byte2 = 0x80 if mask else 0
 
         if length < 126:  # 126 is magic value to use 2-byte length header
             byte2 |= length
