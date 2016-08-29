@@ -14,23 +14,59 @@ OP_PONG = 0xa
 
 
 class Websocket:
-    is_masked = is_server = is_client = False
+    is_client = False
 
     def __init__(self, reader, writer):
         self.reader = reader
         self.writer = writer
+        self.open = True
+
+    async def read_frame(self, max_size=None):
+        """
+        Read a frame from the socket.
+        See https://tools.ietf.org/html/rfc6455#section-5.2 for the details.
+        """
+        assert self.open
+
+        # Frame header
+        byte1, byte2 = struct.unpack('!BB', await self.reader.read(2))
+
+        # Byte 1: FIN(1) _(1) _(1) _(1) OPCODE(4)
+        fin = bool(byte1 & (1 << 7))
+        opcode = byte1 & 0xf
+
+        # Byte 2: MASK(1) LENGTH(7)
+        mask = bool(byte2 & (1 << 7))
+        length = byte2 & 0x7f
+
+        if length == 126:  # Magic number, length header is 2 bytes
+            length, = struct.unpack('!H', await self.reader.read(2))
+        elif length == 127:  # Magic number, length header is 8 bytes
+            length, = struct.unpack('!Q', await self.reader.read(8))
+
+        if mask:  # Mask is 4 bytes
+            mask_bits = await self.reader.read(4)
+
+        data = await self.reader.read(length)
+
+        if mask:
+            data = bytes(b ^ mask_bits[i % 4]
+                         for i, b in enumerate(data))
+
+        return fin, opcode, data
 
     async def write_frame(self, opcode, data=b''):
         """
         Write a frame to the socket.
         See https://tools.ietf.org/html/rfc6455#section-5.2 for the details.
         """
+        assert self.open
+
         fin = True
-        mask = self.is_masked
+        mask = self.is_client  # messages sent by client are masked
 
         length = len(data)
 
-        #
         # Frame header
         # Byte 1: FIN(1) _(1) _(1) _(1) OPCODE(4)
         byte1 = 1 << 7 if fin else 0
@@ -57,7 +93,7 @@ class Websocket:
         else:
             raise ValueError()
 
-        if mask:
+        if mask:  # Mask is 4 bytes
             mask_bits = struct.pack('!I', 0xaaaa)  # FIXME: no RNG available
             await self.writer.awrite(mask_bits)
 
@@ -67,7 +103,16 @@ class Websocket:
         await self.writer.awrite(data)
 
     async def recv(self):
-        return await self.reader.read()
+        fin, opcode, data = await self.read_frame()
+
+        if opcode == OP_TEXT:
+            data = data.decode('utf-8')
+        elif opcode == OP_BYTES:
+            pass
+        else:
+            raise ValueError(opcode)
+
+        return data
 
     async def send(self, buf):
         if isinstance(buf, str):

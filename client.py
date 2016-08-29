@@ -16,7 +16,7 @@ from .protocol import Websocket
 
 
 class WebsocketClient(Websocket):
-    is_masked = is_client = True
+    is_client = True
 
 
 async def connect(uri, *, loop=None):
