@@ -3,7 +3,7 @@ Websockets protocol
 """
 
 import logging
-import struct
+import ustruct as struct
 import urandom as random
 
 LOGGER = logging.getLogger(__name__)
