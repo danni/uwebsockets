@@ -20,41 +20,61 @@ class WebsocketClient(Websocket):
     is_client = True
 
 
-async def connect(uri):
-    """Connect a websocket."""
+class connect:
+    """
+    Connect a websocket.
 
-    uri = urllib.parse.urlparse(uri)
+    This can be used as either a context manager or as a function.
+    """
 
-    assert uri.scheme == 'ws'
+    def __init__(self, uri):
+        self.uri = urllib.parse.urlparse(uri)
 
-    if __debug__: LOGGER.debug("open connection %s:%s", uri.hostname, uri.port)
+    async def __iter__(self):
+        """This is a hack to allow the websocket = connect() format."""
+        return await self._connect()
 
-    reader, writer = await asyncio.open_connection(uri.hostname, uri.port)
+    async def _connect(self):
 
-    async def send_header(header, *args):
-        if __debug__: LOGGER.debug(header, *args)
-        await writer.awrite(header % args + '\r\n')
+        assert self.uri.scheme == 'ws'
 
-    # Sec-WebSocket-Key is 16 bytes of random base64 encoded
-    key = base64.b64encode(bytes(random.getrandbits(8) for _ in range(16)))
+        if __debug__: LOGGER.debug("open connection %s:%s",
+                                   self.uri.hostname, self.uri.port)
 
-    await send_header(b'GET %s HTTP/1.1', uri.path)
-    await send_header(b'Host: %s:%s', uri.hostname, uri.port)
-    await send_header(b'Connection: Upgrade')
-    await send_header(b'Upgrade: websocket')
-    await send_header(b'Sec-WebSocket-Key: %s', key)
-    # await send_header(b'Sec-WebSocket-Protocol: chat')
-    await send_header(b'Sec-WebSocket-Version: 13')
-    await send_header(b'Origin: http://localhost')
-    await send_header(b'')
+        reader, writer = await asyncio.open_connection(self.uri.hostname,
+                                                       self.uri.port)
 
-    header = await reader.readline()
-    assert header == b'HTTP/1.1 101 Switching Protocols\r\n'
+        async def send_header(header, *args):
+            if __debug__: LOGGER.debug(header, *args)
+            await writer.awrite(header % args + '\r\n')
 
-    # We don't (currently) need these headers
-    # FIXME: should we check the return key?
-    while header.strip():
-        if __debug__: LOGGER.debug(header)
+        # Sec-WebSocket-Key is 16 bytes of random base64 encoded
+        key = base64.b64encode(bytes(random.getrandbits(8) for _ in range(16)))
+
+        await send_header(b'GET %s HTTP/1.1', self.uri.path)
+        await send_header(b'Host: %s:%s', self.uri.hostname, self.uri.port)
+        await send_header(b'Connection: Upgrade')
+        await send_header(b'Upgrade: websocket')
+        await send_header(b'Sec-WebSocket-Key: %s', key)
+        # await send_header(b'Sec-WebSocket-Protocol: chat')
+        await send_header(b'Sec-WebSocket-Version: 13')
+        await send_header(b'Origin: http://localhost')
+        await send_header(b'')
+
         header = await reader.readline()
+        assert header == b'HTTP/1.1 101 Switching Protocols\r\n'
 
-    return WebsocketClient(reader, writer)
+        # We don't (currently) need these headers
+        # FIXME: should we check the return key?
+        while header.strip():
+            if __debug__: LOGGER.debug(header)
+            header = await reader.readline()
+
+        return WebsocketClient(reader, writer)
+
+    async def __aenter__(self):
+        self._websocket = await self._connect()
+        return self._websocket
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self._websocket.close()

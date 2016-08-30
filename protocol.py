@@ -125,3 +125,6 @@ class Websocket:
             raise TypeError()
 
         return await self.write_frame(opcode, buf)
+
+    async def close(self):
+        pass
