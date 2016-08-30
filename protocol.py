@@ -3,6 +3,7 @@ Websockets protocol
 """
 
 import struct
+import urandom as random
 
 # Opcodes
 OP_CONT = const(0x0)
@@ -94,7 +95,7 @@ class Websocket:
             raise ValueError()
 
         if mask:  # Mask is 4 bytes
-            mask_bits = struct.pack('!I', 0xaaaa)  # FIXME: no RNG available
+            mask_bits = struct.pack('!I', random.getrandbits(32))
             await self.writer.awrite(mask_bits)
 
             data = bytes(b ^ mask_bits[i % 4]
