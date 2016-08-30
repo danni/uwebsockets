@@ -107,16 +107,29 @@ class Websocket:
         await self.writer.awrite(data)
 
     async def recv(self):
-        fin, opcode, data = await self.read_frame()
+        while True:
+            fin, opcode, data = await self.read_frame()
 
-        if opcode == OP_TEXT:
-            data = data.decode('utf-8')
-        elif opcode == OP_BYTES:
-            pass
-        else:
-            raise ValueError(opcode)
+            if not fin:
+                raise NotImplementedError()
 
-        return data
+            if opcode == OP_TEXT:
+                return data.decode('utf-8')
+            elif opcode == OP_BYTES:
+                return data
+            elif opcode == OP_PONG:
+                # Ignore this frame, keep waiting for a data frame
+                continue
+            elif opcode == OP_PING:
+                # We need to send a pong frame
+                self.write_frame(OP_PONG, data)
+                # And then wait to receive
+                continue
+            elif opcode == OP_CONT:
+                # This is a continuation of a previous frame
+                raise NotImplementedError(opcode)
+            else:
+                raise ValueError(opcode)
 
     async def send(self, buf):
         if isinstance(buf, str):
