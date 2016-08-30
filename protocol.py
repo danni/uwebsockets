@@ -2,8 +2,11 @@
 Websockets protocol
 """
 
+import logging
 import struct
 import urandom as random
+
+LOGGER = logging.getLogger(__name__)
 
 # Opcodes
 OP_CONT = const(0x0)
@@ -30,7 +33,6 @@ class Websocket:
         Read a frame from the socket.
         See https://tools.ietf.org/html/rfc6455#section-5.2 for the details.
         """
-        assert self.open
 
         # Frame header
         byte1, byte2 = struct.unpack('!BB', await self.reader.read(2))
@@ -64,8 +66,6 @@ class Websocket:
         Write a frame to the socket.
         See https://tools.ietf.org/html/rfc6455#section-5.2 for the details.
         """
-        assert self.open
-
         fin = True
         mask = self.is_client  # messages sent by client are masked
 
@@ -107,7 +107,17 @@ class Websocket:
         await self.writer.awrite(data)
 
     async def recv(self):
-        while True:
+        """
+        Receive data from the websocket.
+
+        This is slightly different from 'websockets' in that it doesn't
+        fire off a routine to process frames and put the data in a queue.
+        If you don't call recv() sufficiently often you won't process control
+        frames.
+        """
+        assert self.open
+
+        while self.open:
             fin, opcode, data = await self.read_frame()
 
             if not fin:
@@ -117,11 +127,15 @@ class Websocket:
                 return data.decode('utf-8')
             elif opcode == OP_BYTES:
                 return data
+            elif opcode == OP_CLOSE:
+                await self._close()
+                return
             elif opcode == OP_PONG:
                 # Ignore this frame, keep waiting for a data frame
                 continue
             elif opcode == OP_PING:
                 # We need to send a pong frame
+                if __debug__: LOGGER.debug("Sending PONG")
                 self.write_frame(OP_PONG, data)
                 # And then wait to receive
                 continue
@@ -132,6 +146,10 @@ class Websocket:
                 raise ValueError(opcode)
 
     async def send(self, buf):
+        """Send data to the websocket."""
+
+        assert self.open
+
         if isinstance(buf, str):
             opcode = OP_TEXT
             buf = buf.encode('utf-8')
@@ -140,10 +158,20 @@ class Websocket:
         else:
             raise TypeError()
 
-        return await self.write_frame(opcode, buf)
+        await self.write_frame(opcode, buf)
 
     async def close(self, code=CLOSE_OK, reason=''):
+        """Close the websocket."""
+        assert self.open
 
         buf = struct.pack('!H', code) + reason.encode('utf-8')
 
-        return await self.write_frame(OP_CLOSE, buf)
+        await self.write_frame(OP_CLOSE, buf)
+        await self._close()
+
+    async def _close(self):
+        if __debug__: LOGGER.debug("Connection closed")
+        self.open = False
+        # https://github.com/micropython/micropython-lib/issues/98
+        # await self.reader.aclose()
+        # await self.writer.aclose()
