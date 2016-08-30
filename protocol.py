@@ -18,6 +18,14 @@ OP_PONG = const(0xa)
 
 # Close codes
 CLOSE_OK = const(1000)
+CLOSE_GOING_AWAY = const(1001)
+CLOSE_PROTOCOL_ERROR = const(1002)
+CLOSE_DATA_NOT_SUPPORTED = const(1003)
+CLOSE_BAD_DATA = const(1007)
+CLOSE_POLICY_VIOLATION = const(1008)
+CLOSE_TOO_BIG = const(1009)
+CLOSE_MISSING_EXTN = const(1010)
+CLOSE_BAD_CONDITION = const(1011)
 
 
 class Websocket:
@@ -53,7 +61,14 @@ class Websocket:
         if mask:  # Mask is 4 bytes
             mask_bits = await self.reader.read(4)
 
-        data = await self.reader.read(length)
+        try:
+            data = await self.reader.read(length)
+        except MemoryError:
+            # We can't receive this many bytes, close the socket
+            if __debug__: LOGGER.debug("Frame of length %s too big. Closing",
+                                       length)
+            await self.close(code=CLOSE_TOO_BIG)
+            return True, OP_CLOSE, None
 
         if mask:
             data = bytes(b ^ mask_bits[i % 4]
