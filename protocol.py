@@ -177,7 +177,8 @@ class Websocket:
 
     async def close(self, code=CLOSE_OK, reason=''):
         """Close the websocket."""
-        assert self.open
+        if not self.open:
+            return
 
         buf = struct.pack('!H', code) + reason.encode('utf-8')
 
