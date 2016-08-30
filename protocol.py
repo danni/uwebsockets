@@ -13,6 +13,9 @@ OP_CLOSE = const(0x8)
 OP_PING = const(0x9)
 OP_PONG = const(0xa)
 
+# Close codes
+CLOSE_OK = const(1000)
+
 
 class Websocket:
     is_client = False
@@ -126,5 +129,8 @@ class Websocket:
 
         return await self.write_frame(opcode, buf)
 
-    async def close(self):
-        pass
+    async def close(self, code=CLOSE_OK, reason=''):
+
+        buf = struct.pack('!H', code) + reason.encode('utf-8')
+
+        return await self.write_frame(OP_CLOSE, buf)
