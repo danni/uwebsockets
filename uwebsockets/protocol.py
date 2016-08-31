@@ -37,7 +37,7 @@ def urlparse(uri):
     """Parse ws:// URLs"""
     match = URL_RE.match(uri)
     if match:
-        return URI(match.group(1), match.group(2), match.group(3))
+        return URI(match.group(1), int(match.group(2)), match.group(3))
 
 
 class Websocket:

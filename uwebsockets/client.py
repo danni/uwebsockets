@@ -9,7 +9,6 @@ import logging
 import usocket as socket
 import ubinascii as binascii
 import urandom as random
-import uasyncio as asyncio
 
 from .protocol import Websocket, urlparse
 

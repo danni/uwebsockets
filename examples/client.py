@@ -1,9 +1,16 @@
 import uwebsockets.client
+import os
 
 def hello():
-    with uwebsockets.client.connect('ws://127.0.0.1:5000') as websocket:
+    with uwebsockets.client.connect('ws://YOUR.IP.HERE:5000') as websocket:
 
-        name = "Badger"
+        uname = os.uname()
+        name = '{sysname} {release} {version} {machine}'.format(
+            sysname=uname.sysname,
+            release=uname.release,
+            version=uname.version,
+            machine=uname.machine,
+        )
         websocket.send(name)
         print("> {}".format(name))
 
