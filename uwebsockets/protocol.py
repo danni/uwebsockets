@@ -208,5 +208,4 @@ class Websocket:
     def _close(self):
         if __debug__: LOGGER.debug("Connection closed")
         self.open = False
-        # https://github.com/micropython/micropython-lib/issues/98
         self.sock.close()
