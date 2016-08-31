@@ -1,3 +1,2 @@
-micropython-base64
 micropython-uasyncio
 micropython-urllib.parse

@@ -7,7 +7,7 @@ https://github.com/aaugustin/websockets/blob/master/websockets/client.py
 
 import logging
 import urllib.parse
-import base64
+import ubinascii as binascii
 import urandom as random
 import uasyncio as asyncio
 
@@ -49,7 +49,8 @@ class connect:
             await writer.awrite(header % args + '\r\n')
 
         # Sec-WebSocket-Key is 16 bytes of random base64 encoded
-        key = base64.b64encode(bytes(random.getrandbits(8) for _ in range(16)))
+        key = binascii.b2a_base64(bytes(random.getrandbits(8)
+                                        for _ in range(16))).rstrip()
 
         await send_header(b'GET %s HTTP/1.1', self.uri.path or '/')
         await send_header(b'Host: %s:%s', self.uri.hostname, self.uri.port)
@@ -66,7 +67,7 @@ class connect:
 
         # We don't (currently) need these headers
         # FIXME: should we check the return key?
-        while header.strip():
+        while header.rstrip():
             if __debug__: LOGGER.debug(str(header))
             header = await reader.readline()
 
