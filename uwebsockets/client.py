@@ -7,12 +7,11 @@ https://github.com/aaugustin/websockets/blob/master/websockets/client.py
 
 import logging
 import usocket as socket
-import urllib.parse
 import ubinascii as binascii
 import urandom as random
 import uasyncio as asyncio
 
-from .protocol import Websocket
+from .protocol import Websocket, urlparse
 
 LOGGER = logging.getLogger(__name__)
 
@@ -26,9 +25,8 @@ def connect(uri):
     Connect a websocket.
     """
 
-    uri = urllib.parse.urlparse(uri)
-
-    assert uri.scheme == 'ws'
+    uri = urlparse(uri)
+    assert uri
 
     if __debug__: LOGGER.debug("open connection %s:%s",
                                 uri.hostname, uri.port)

@@ -1,2 +1,0 @@
-micropython-uasyncio
-micropython-urllib.parse

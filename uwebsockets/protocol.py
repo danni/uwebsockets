@@ -3,8 +3,10 @@ Websockets protocol
 """
 
 import logging
+import ure as re
 import ustruct as struct
 import urandom as random
+from ucollections import namedtuple
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +30,23 @@ CLOSE_MISSING_EXTN = const(1010)
 CLOSE_BAD_CONDITION = const(1011)
 
 
+URL_RE = re.compile(r'ws://([A-Za-z0-9\-\.]+)(?:\:([0-9]+))?(/.+)?')
+URI = namedtuple('URI', ('hostname', 'port', 'path'))
+
+def urlparse(uri):
+    """Parse ws:// URLs"""
+    match = URL_RE.match(uri)
+    if match:
+        return URI(match.group(1), match.group(2), match.group(3))
+
+
 class Websocket:
+    """
+    Basis of the Websocket protocol.
+
+    This can probably be replaced with the C-based websocket module, but
+    this one currently supports more options.
+    """
     is_client = False
 
     def __init__(self, sock):
