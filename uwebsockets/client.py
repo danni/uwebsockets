@@ -45,13 +45,13 @@ class connect:
                                                        self.uri.port)
 
         async def send_header(header, *args):
-            if __debug__: LOGGER.debug(header, *args)
+            if __debug__: LOGGER.debug(str(header), *args)
             await writer.awrite(header % args + '\r\n')
 
         # Sec-WebSocket-Key is 16 bytes of random base64 encoded
         key = base64.b64encode(bytes(random.getrandbits(8) for _ in range(16)))
 
-        await send_header(b'GET %s HTTP/1.1', self.uri.path)
+        await send_header(b'GET %s HTTP/1.1', self.uri.path or '/')
         await send_header(b'Host: %s:%s', self.uri.hostname, self.uri.port)
         await send_header(b'Connection: Upgrade')
         await send_header(b'Upgrade: websocket')
@@ -62,12 +62,12 @@ class connect:
         await send_header(b'')
 
         header = await reader.readline()
-        assert header == b'HTTP/1.1 101 Switching Protocols\r\n'
+        assert header == b'HTTP/1.1 101 Switching Protocols\r\n', header
 
         # We don't (currently) need these headers
         # FIXME: should we check the return key?
         while header.strip():
-            if __debug__: LOGGER.debug(header)
+            if __debug__: LOGGER.debug(str(header))
             header = await reader.readline()
 
         return WebsocketClient(reader, writer)
