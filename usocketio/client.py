@@ -10,7 +10,7 @@ from ucollections import namedtuple
 
 import uwebsockets.client
 
-from .protocol import decode_payload, PACKET_OPEN
+from .protocol import *
 from .transport import SocketIO
 
 LOGGER = logging.getLogger(__name__)
@@ -67,10 +67,7 @@ def _connect_http(hostname, port, path):
         assert length
 
         data = sock.read(length)
-        packet_type, data = next(decode_payload(data))
-
-        assert packet_type == PACKET_OPEN
-        return json.loads(data)
+        return decode_payload(data)
 
     finally:
         sock.close()
@@ -84,7 +81,15 @@ def connect(uri):
 
     path = uri.path or '/' + 'socket.io/?EIO=3'
 
-    params = _connect_http(uri.hostname, uri.port, path)
+    # Start a HTTP connection, which will give us an SID to use to upgrade
+    # the websockets connection
+    packets = _connect_http(uri.hostname, uri.port, path)
+    # The first packet should open the connection,
+    # following packets might be initialisation messages for us
+    packet_type, params = next(packets)
+
+    assert packet_type == PACKET_OPEN
+    params = json.loads(params)
 
     assert 'websocket' in params['upgrades']
 
@@ -94,10 +99,29 @@ def connect(uri):
     if __debug__:
         LOGGER.debug("Connecting to websocket SID %s", sid)
 
+    # FIXME: handle rest of the packets
+    print(list(packets))
+
+    # Start a websocket and send a probe on it
     websocket = uwebsockets.client.connect(
-        'ws://{hostname}:{port}{path}'.format(
+        'ws://{hostname}:{port}{path}&transport=websocket'.format(
             hostname=uri.hostname,
             port=uri.port,
             path=path))
 
-    return SocketIO(websocket)
+    socketio = SocketIO(websocket)
+    socketio._send(PACKET_PING, 'probe')
+
+    # Send a follow-up poll
+    _connect_http(uri.hostname, uri.port, path + '&transport=polling')
+
+    # We should receive an answer to our probe
+    packet = socketio._recv()
+    assert packet == (PACKET_PONG, 'probe')
+
+    # Upgrade the connection
+    socketio._send(PACKET_UPGRADE)
+    packet = socketio._recv()
+    assert packet == (PACKET_NOOP, '')
+
+    return socketio

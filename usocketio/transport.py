@@ -1,5 +1,7 @@
 """SocketIO transport."""
 
+from .protocol import decode_packet
+
 
 class SocketIO:
     """SocketIO transport."""
@@ -19,5 +21,11 @@ class SocketIO:
     def wait(self):
         """Main loop for SocketIO."""
         while True:
-            data = self.websocket.recv()
-            print(data)
+            packet_type, data = self._recv()
+            print(packet_type, data)
+
+    def _send(self, packet_type, data=''):
+        self.websocket.send('{}{}'.format(packet_type, data))
+
+    def _recv(self):
+        return decode_packet(self.websocket.recv())
