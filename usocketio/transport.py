@@ -18,7 +18,7 @@ class SocketIO:
     def close(self):
         self.websocket.close()
 
-    def wait(self):
+    def run_forever(self):
         """Main loop for SocketIO."""
         while True:
             packet_type, data = self._recv()

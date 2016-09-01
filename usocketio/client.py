@@ -37,7 +37,7 @@ def _connect_http(hostname, port, path):
             if __debug__:
                 LOGGER.debug(str(header), *args)
 
-            sock.send(header % args + '\r\n')
+            sock.write(header % args + '\r\n')
 
         send_header(b'GET %s HTTP/1.1', path)
         send_header(b'Host: %s:%s', hostname, port)
