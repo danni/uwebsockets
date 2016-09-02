@@ -110,7 +110,7 @@ def connect(uri):
             path=path))
 
     socketio = SocketIO(websocket)
-    socketio._send(PACKET_PING, 'probe')
+    socketio._send_packet(PACKET_PING, 'probe')
 
     # Send a follow-up poll
     _connect_http(uri.hostname, uri.port, path + '&transport=polling')
@@ -120,7 +120,7 @@ def connect(uri):
     assert packet == (PACKET_PONG, 'probe')
 
     # Upgrade the connection
-    socketio._send(PACKET_UPGRADE)
+    socketio._send_packet(PACKET_UPGRADE)
     packet = socketio._recv()
     assert packet == (PACKET_NOOP, '')
 

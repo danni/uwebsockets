@@ -13,6 +13,14 @@ PACKET_MESSAGE = const(4)
 PACKET_UPGRADE = const(5)
 PACKET_NOOP = const(6)
 
+MESSAGE_CONNECT = const(0)
+MESSAGE_DISCONNECT = const(1)
+MESSAGE_EVENT = const(2)
+MESSAGE_ACK = const(3)
+MESSAGE_ERROR = const(4)
+MESSAGE_BINARY_EVENT = const(5)
+MESSAGE_BINARY_ACK = const(6)
+
 
 def decode_packet(buf):
     if isinstance(buf, str) and buf[0] == 'b':
