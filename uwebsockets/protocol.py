@@ -6,6 +6,7 @@ import logging
 import ure as re
 import ustruct as struct
 import urandom as random
+import usocket as socket
 from ucollections import namedtuple
 
 LOGGER = logging.getLogger(__name__)
@@ -58,6 +59,9 @@ class Websocket:
 
     def __exit__(self, exc_type, exc, tb):
         self.close()
+
+    def settimeout(self, timeout):
+        self._sock.settimeout(timeout)
 
     def read_frame(self, max_size=None):
         """
