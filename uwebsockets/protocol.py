@@ -50,7 +50,7 @@ class Websocket:
     is_client = False
 
     def __init__(self, sock):
-        self.sock = sock
+        self._sock = sock
         self.open = True
 
     def __enter__(self):
@@ -66,7 +66,7 @@ class Websocket:
         """
 
         # Frame header
-        byte1, byte2 = struct.unpack('!BB', self.sock.read(2))
+        byte1, byte2 = struct.unpack('!BB', self._sock.read(2))
 
         # Byte 1: FIN(1) _(1) _(1) _(1) OPCODE(4)
         fin = bool(byte1 & 0x80)
@@ -77,15 +77,15 @@ class Websocket:
         length = byte2 & 0x7f
 
         if length == 126:  # Magic number, length header is 2 bytes
-            length, = struct.unpack('!H', self.sock.read(2))
+            length, = struct.unpack('!H', self._sock.read(2))
         elif length == 127:  # Magic number, length header is 8 bytes
-            length, = struct.unpack('!Q', self.sock.read(8))
+            length, = struct.unpack('!Q', self._sock.read(8))
 
         if mask:  # Mask is 4 bytes
-            mask_bits = self.sock.read(4)
+            mask_bits = self._sock.read(4)
 
         try:
-            data = self.sock.read(length)
+            data = self._sock.read(length)
         except MemoryError:
             # We can't receive this many bytes, close the socket
             if __debug__: LOGGER.debug("Frame of length %s too big. Closing",
@@ -119,27 +119,27 @@ class Websocket:
 
         if length < 126:  # 126 is magic value to use 2-byte length header
             byte2 |= length
-            self.sock.write(struct.pack('!BB', byte1, byte2))
+            self._sock.write(struct.pack('!BB', byte1, byte2))
 
         elif length < (1 << 16):  # Length fits in 2-bytes
             byte2 |= 126  # Magic code
-            self.sock.write(struct.pack('!BBH', byte1, byte2, length))
+            self._sock.write(struct.pack('!BBH', byte1, byte2, length))
 
         elif length < (1 << 64):
             byte2 |= 127  # Magic code
-            self.sock.write(struct.pack('!BBQ', byte1, byte2, length))
+            self._sock.write(struct.pack('!BBQ', byte1, byte2, length))
 
         else:
             raise ValueError()
 
         if mask:  # Mask is 4 bytes
             mask_bits = struct.pack('!I', random.getrandbits(32))
-            self.sock.write(mask_bits)
+            self._sock.write(mask_bits)
 
             data = bytes(b ^ mask_bits[i % 4]
                          for i, b in enumerate(data))
 
-        self.sock.write(data)
+        self._sock.write(data)
 
     def recv(self):
         """
@@ -208,4 +208,4 @@ class Websocket:
     def _close(self):
         if __debug__: LOGGER.debug("Connection closed")
         self.open = False
-        self.sock.close()
+        self._sock.close()

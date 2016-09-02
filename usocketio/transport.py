@@ -11,8 +11,9 @@ LOGGER = logging.getLogger(__name__)
 class SocketIO:
     """SocketIO transport."""
 
-    def __init__(self, websocket):
+    def __init__(self, websocket, **params):
         self.websocket = websocket
+        self.timeout = params['pingInterval'] // 1000  # seconds
         self._handlers = {}
 
     def __enter__(self):

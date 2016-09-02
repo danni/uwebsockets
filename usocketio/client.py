@@ -90,6 +90,7 @@ def connect(uri):
 
     assert packet_type == PACKET_OPEN
     params = json.loads(params)
+    LOGGER.debug("Websocket parameters = %s", params)
 
     assert 'websocket' in params['upgrades']
 
@@ -109,7 +110,7 @@ def connect(uri):
             port=uri.port,
             path=path))
 
-    socketio = SocketIO(websocket)
+    socketio = SocketIO(websocket, **params)
     socketio._send_packet(PACKET_PING, 'probe')
 
     # Send a follow-up poll
