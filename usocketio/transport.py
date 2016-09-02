@@ -13,6 +13,7 @@ class SocketIO:
     """SocketIO transport."""
 
     def __init__(self, websocket, **params):
+        self.open = True
         self.websocket = websocket
         self.timeout = params['pingInterval'] // 1000  # seconds
         self._handlers = {}
@@ -29,7 +30,7 @@ class SocketIO:
     def run_forever(self):
         """Main loop for SocketIO."""
         LOGGER.debug("Entering event loop")
-        while True:
+        while self.open:
             # FIXME: need a timeout so that we can send ping messages
             packet_type, data = self._recv()
             self._handle_packet(packet_type, data)
@@ -38,8 +39,17 @@ class SocketIO:
         if packet_type == PACKET_MESSAGE:
             message_type, data = decode_packet(data)
             self._handle_message(message_type, data)
+
+        elif packet_type == PACKET_CLOSE:
+            LOGGER.debug("Socket.io closed")
+            self.open = False
+
         elif packet_type == PACKET_PONG:
             LOGGER.debug("pong")
+
+        elif packet_type == PACKET_NOOP:
+            pass
+
         else:
             print("Unhandled packet", packet_type, data)
 
@@ -52,6 +62,11 @@ class SocketIO:
                 LOGGER.debug("Calling handler %s for event '%s'",
                              handler, event)
                 handler(self, data)
+
+        elif message_type == MESSAGE_DISCONNECT:
+            LOGGER.debug("Disconnected")
+            self.open = False
+
         else:
             print("Unhandled message type", message_type, data)
 
@@ -64,14 +79,18 @@ class SocketIO:
         try:
             LOGGER.debug("Enabling timeouts")
             self.websocket.settimeout(self.timeout)
+            LOGGER.debug("Waiting for packet")
             return decode_packet(self.websocket.recv())
-        except OSError:  # FIXME: socket.timeout ?
-            LOGGER.debug("Sending ping")
-            self._send_packet(PACKET_PING)
-            return decode_packet(self.websocket.recv())
-        finally:
-            LOGGER.debug("Disabling timeouts")
             self.websocket.settimeout(None)
+
+        except OSError:  # FIXME: socket.timeout ?
+            if self.websocket.open:
+                self.websocket.settimeout(None)
+                LOGGER.debug("Sending ping")
+                self._send_packet(PACKET_PING)
+                return PACKET_NOOP, None
+            else:
+                return PACKET_CLOSE, None
 
     def on(self, event):
         """Register an event handler with the socket."""

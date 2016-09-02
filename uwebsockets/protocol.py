@@ -157,7 +157,12 @@ class Websocket:
         assert self.open
 
         while self.open:
-            fin, opcode, data = self.read_frame()
+            try:
+                fin, opcode, data = self.read_frame()
+            except ValueError:
+                LOGGER.debug("Failed to read frame. Socket dead.")
+                self._close()
+                return
 
             if not fin:
                 raise NotImplementedError()
