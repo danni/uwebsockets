@@ -13,13 +13,18 @@ LOGGER = logging.getLogger(__name__)
 class SocketIO:
     """SocketIO transport."""
 
-    def __init__(self, uri, **params):
+    def __init__(self, uri, reconnect=True, **params):
         self.uri = uri
+        self.reconnect = reconnect
         self.websocket = uwebsockets.client.connect(uri)
-        self.open = True
 
-        self.timeout = params['pingInterval'] // 1000  # seconds
-        self._handlers = {}
+        # Event handlers map from event -> [handlers, ...]
+        self._event_handlers = {}
+        # Interval handlers [(interval, handler), ...]
+        self._interval_handlers = []
+
+        # Register a ping event
+        self.at_interval(params['pingInterval'] // 1000)(self.ping)
 
     def __enter__(self):
         return self
@@ -33,81 +38,114 @@ class SocketIO:
     def run_forever(self):
         """Main loop for SocketIO."""
         LOGGER.debug("Entering event loop")
-        while self.open:
-            packet_type, data = self._recv()
-            self._handle_packet(packet_type, data)
+        counter = 0
+
+        # send a connection event
+        self._handle_event('connect')
+
+        while self.reconnect:
+            while self.websocket.open:
+                packet_type, data = self._recv()
+                self._handle_packet(packet_type, data)
+                counter += 1
+
+                for interval, func in self._interval_handlers:
+                    if counter % interval == 0:
+                        func(self)
+
+            LOGGER.debug("Reconnecting")
+            self.websocket = uwebsockets.client.connect(self.uri)
+
+        LOGGER.debug("Exiting event loop")
 
     def _handle_packet(self, packet_type, data):
-        if packet_type == PACKET_MESSAGE:
+        if packet_type is None:
+            pass
+
+        elif packet_type == PACKET_MESSAGE:
             message_type, data = decode_packet(data)
             self._handle_message(message_type, data)
 
         elif packet_type == PACKET_CLOSE:
             LOGGER.debug("Socket.io closed")
-            self.open = False
+            self.close()
+
+        elif packet_type == PACKET_PING:
+            LOGGER.debug("< ping")
+            self._send_packet(PACKET_PONG, data)
 
         elif packet_type == PACKET_PONG:
-            LOGGER.debug("pong")
+            LOGGER.debug("< pong")
 
         elif packet_type == PACKET_NOOP:
             pass
 
         else:
-            print("Unhandled packet", packet_type, data)
+            LOGGER.warning("Unhandled packet %s: %s", packet_type, data)
 
     def _handle_message(self, message_type, data):
         if message_type == MESSAGE_EVENT:
             event, data = json.loads(data)
-            LOGGER.debug("Handling event '%s'", event)
-
-            for handler in self._handlers.get(event, []):
-                LOGGER.debug("Calling handler %s for event '%s'",
-                             handler, event)
-                handler(self, data)
+            self._handle_event(event, data)
 
         elif message_type == MESSAGE_ERROR:
             LOGGER.error("Error: %s", data)
-            self._handle_error()
 
         elif message_type == MESSAGE_DISCONNECT:
             LOGGER.debug("Disconnected")
-            self.open = False
+            self.close()
 
         else:
-            print("Unhandled message type", message_type, data)
+            LOGGER.warning("Unhandled message %s: %s", message_type, data)
 
-    def _handle_error(self):
-        if not self.websocket.open:
-            LOGGER.info("Reconnecting websocket...")
-            self.websocket = uwebsockets.client.connect(self.uri)
+    def _handle_event(self, event, data=None):
+        LOGGER.debug("Handling event '%s'", event)
+
+        for handler in self._event_handlers.get(event, []):
+            LOGGER.debug("Calling handler %s for event '%s'",
+                            handler, event)
+            handler(self, data)
 
     def _send_packet(self, packet_type, data=''):
         self.websocket.send('{}{}'.format(packet_type, data))
+
+    @staticmethod
+    def ping(self):
+        LOGGER.debug("> ping")
+        self._send_packet(PACKET_PING)
 
     def _recv(self):
         """Receive a packet."""
 
         try:
-            LOGGER.debug("Enabling timeouts")
-            self.websocket.settimeout(self.timeout)
-            LOGGER.debug("Waiting for packet")
-            return decode_packet(self.websocket.recv())
-            self.websocket.settimeout(None)
+            self.websocket.settimeout(1)
+            packet = self.websocket.recv()
 
-        except OSError:  # FIXME: socket.timeout ?
-            if self.websocket.open:
-                self.websocket.settimeout(None)
-                LOGGER.debug("Sending ping")
-                self._send_packet(PACKET_PING)
-                return PACKET_NOOP, None
+            if packet:
+                return decode_packet(packet)
             else:
-                return PACKET_CLOSE, None
+                return None, None
+
+        except OSError:
+            return None, None
+
+        finally:
+            self.websocket.settimeout(None)
 
     def on(self, event):
         """Register an event handler with the socket."""
 
         def inner(func):
             LOGGER.debug("Registered %s to handle %s", func, event)
-            self._handlers.setdefault(event, []).append(func)
+            self._event_handlers.setdefault(event, []).append(func)
+
+        return inner
+
+    def at_interval(self, interval):
+        """Register an event handler to happen at an interval."""
+
+        def inner(func):
+            LOGGER.debug("Registered %s to run at interval %s", func, interval)
+            self._interval_handlers.append((interval, func))
 
         return inner
