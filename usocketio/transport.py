@@ -35,6 +35,12 @@ class SocketIO:
     def close(self):
         self.websocket.close()
 
+    def send(self, message):
+        self.emit('message', message)
+
+    def emit(self, event, data):
+        self._send_message(MESSAGE_EVENT, (event, data))
+
     def run_forever(self):
         """Main loop for SocketIO."""
         LOGGER.debug("Entering event loop")
@@ -109,7 +115,10 @@ class SocketIO:
     def _send_packet(self, packet_type, data=''):
         self.websocket.send('{}{}'.format(packet_type, data))
 
-    @staticmethod
+    def _send_message(self, message_type, data=None):
+        self._send_packet(PACKET_MESSAGE, '{}{}'.format(message_type,
+                                                        json.dumps(data)))
+
     def ping(self):
         LOGGER.debug("> ping")
         self._send_packet(PACKET_PING)
