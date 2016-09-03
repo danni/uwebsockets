@@ -36,7 +36,7 @@ def connect(uri):
 
     def send_header(header, *args):
         if __debug__: LOGGER.debug(str(header), *args)
-        sock.write(header % args + '\r\n')
+        sock.send(header % args + '\r\n')
 
     # Sec-WebSocket-Key is 16 bytes of random base64 encoded
     key = binascii.b2a_base64(bytes(random.getrandbits(8)

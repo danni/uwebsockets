@@ -104,13 +104,12 @@ def connect(uri):
     print(list(packets))
 
     # Start a websocket and send a probe on it
-    websocket = uwebsockets.client.connect(
-        'ws://{hostname}:{port}{path}&transport=websocket'.format(
-            hostname=uri.hostname,
-            port=uri.port,
-            path=path))
+    ws_uri = 'ws://{hostname}:{port}{path}&transport=websocket'.format(
+        hostname=uri.hostname,
+        port=uri.port,
+        path=path)
 
-    socketio = SocketIO(websocket, **params)
+    socketio = SocketIO(ws_uri, **params)
     socketio._send_packet(PACKET_PING, 'probe')
 
     # Send a follow-up poll

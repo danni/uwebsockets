@@ -4,6 +4,7 @@ import logging
 import ujson as json
 import usocket as socket
 
+import uwebsockets.client
 from .protocol import *
 
 LOGGER = logging.getLogger(__name__)
@@ -12,9 +13,11 @@ LOGGER = logging.getLogger(__name__)
 class SocketIO:
     """SocketIO transport."""
 
-    def __init__(self, websocket, **params):
+    def __init__(self, uri, **params):
+        self.uri = uri
+        self.websocket = uwebsockets.client.connect(uri)
         self.open = True
-        self.websocket = websocket
+
         self.timeout = params['pingInterval'] // 1000  # seconds
         self._handlers = {}
 
@@ -31,7 +34,6 @@ class SocketIO:
         """Main loop for SocketIO."""
         LOGGER.debug("Entering event loop")
         while self.open:
-            # FIXME: need a timeout so that we can send ping messages
             packet_type, data = self._recv()
             self._handle_packet(packet_type, data)
 
@@ -63,12 +65,21 @@ class SocketIO:
                              handler, event)
                 handler(self, data)
 
+        elif message_type == MESSAGE_ERROR:
+            LOGGER.error("Error: %s", data)
+            self._handle_error()
+
         elif message_type == MESSAGE_DISCONNECT:
             LOGGER.debug("Disconnected")
             self.open = False
 
         else:
             print("Unhandled message type", message_type, data)
+
+    def _handle_error(self):
+        if not self.websocket.open:
+            LOGGER.info("Reconnecting websocket...")
+            self.websocket = uwebsockets.client.connect(self.uri)
 
     def _send_packet(self, packet_type, data=''):
         self.websocket.send('{}{}'.format(packet_type, data))
