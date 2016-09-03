@@ -8,8 +8,6 @@ import ujson as json
 import usocket as socket
 from ucollections import namedtuple
 
-import uwebsockets.client
-
 from .protocol import *
 from .transport import SocketIO
 
@@ -105,8 +103,8 @@ def connect(uri):
     socketio = SocketIO(ws_uri, **params)
 
     # handle rest of the packets once we're in the main loop
-    @socketio.on('connect')
-    def on_connect(socketio, data):
+    @socketio.on('connection')
+    def on_connect(data):
         for packet_type, data in packets:
             socketio._handle_packet(packet_type, data)
 

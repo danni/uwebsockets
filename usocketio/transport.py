@@ -41,7 +41,7 @@ class SocketIO:
         counter = 0
 
         # send a connection event
-        self._handle_event('connect')
+        self._handle_event('connection')
 
         while self.reconnect:
             while self.websocket.open:
