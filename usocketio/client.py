@@ -48,11 +48,7 @@ def _connect_http(hostname, port, path):
 
         length = None
 
-        # We don't (currently) need these headers
         while header:
-            if __debug__:
-                LOGGER.debug(str(header))
-
             header = sock.readline()[:-2]
             if not header:
                 break
@@ -100,9 +96,6 @@ def connect(uri):
     if __debug__:
         LOGGER.debug("Connecting to websocket SID %s", sid)
 
-    # FIXME: handle rest of the packets
-    print(list(packets))
-
     # Start a websocket and send a probe on it
     ws_uri = 'ws://{hostname}:{port}{path}&transport=websocket'.format(
         hostname=uri.hostname,
@@ -110,6 +103,13 @@ def connect(uri):
         path=path)
 
     socketio = SocketIO(ws_uri, **params)
+
+    # handle rest of the packets once we're in the main loop
+    @socketio.on('connect')
+    def on_connect(socketio, data):
+        for packet_type, data in packets:
+            socketio._handle_packet(packet_type, data)
+
     socketio._send_packet(PACKET_PING, 'probe')
 
     # Send a follow-up poll
