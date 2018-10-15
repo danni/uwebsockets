@@ -31,7 +31,7 @@ Connection from ('192.168.1.11', 1883)
 
 ## Example client against 'ws://echo.websocket.org/'
 
-Change [c22e4be](commit/c22e4be2142dc2335d35cb2046c969eb3d29dac0) defaults to port 80 if no port is provided in URL, and allows for all upgrade responses starting with 'HTTP/1.1 101 '.
+Change [c22e4be](../../commit/c22e4be2142dc2335d35cb2046c969eb3d29dac0) defaults to port 80 if no port is provided in URL, and allows for all upgrade responses starting with 'HTTP/1.1 101 '.
 
 Based on that, this is minimal example going against 'ws://echo.websocket.org/':
 
