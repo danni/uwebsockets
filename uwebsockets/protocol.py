@@ -38,8 +38,14 @@ def urlparse(uri):
     """Parse ws:// URLs"""
     match = URL_RE.match(uri)
     if match:
-        port = int(80 if match.group(2)==None else match.group(2))
-        return URI(match.group(1), port, match.group(3))
+        _, host, port, path = (match.group(i) for i in range(4))
+        if port is None:
+            port = 80
+
+        assert host
+        assert port
+
+        return URI(host, port, path)
 
 
 class Websocket:
