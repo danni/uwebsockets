@@ -29,6 +29,35 @@ Connection from ('192.168.1.11', 1883)
 > Hello esp8266 1.5.4(baaeaebb) v1.8.3-80-g1f61fe0-dirty on 2016-08-31 ESP module with ESP8266!
 ```
 
+## Minimal example client against 'ws://echo.websocket.org/'
+
+
+```
+$ webrepl_client.py 192.168.3.1
+Password: 
+
+WebREPL connected
+>>> 
+>>> 
+MicroPython v1.9.4-272-g46091b8a on 2018-07-18; ESP module with ESP8266
+Type "help()" for more information.
+>>> import echo_websocket_org
+The quick brown fox jumps over the lazy dog
+
+>>> 
+### closed ###
+$ 
+$ cat echo_websocket_org.py 
+import uwebsockets.client
+websocket = uwebsockets.client.connect("ws://echo.websocket.org/")
+mesg = "The quick brown fox jumps over the lazy dog"
+websocket.send(mesg + "\r\n")
+resp = websocket.recv()
+print(resp)
+assert(mesg + "\r\n" == resp)
+$ 
+```
+
 # Micropython Socket.io
 
 An implementation of socket.io and engine.io for the ESP8266 (client only ATM).
