@@ -38,7 +38,7 @@ def urlparse(uri):
     """Parse ws:// URLs"""
     match = URL_RE.match(uri)
     if match:
-        _, host, port, path = (match.group(i) for i in range(4))
+        host, port, path = match.group(1), match.group(2), match.group(3)
         if port is None:
             port = 80
 
