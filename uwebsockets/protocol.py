@@ -45,7 +45,7 @@ def urlparse(uri):
         assert host
         assert port
 
-        return URI(host, port, path)
+        return URI(host, int(port), path)
 
 
 class Websocket:
