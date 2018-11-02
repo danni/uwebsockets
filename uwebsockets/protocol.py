@@ -30,20 +30,28 @@ CLOSE_TOO_BIG = const(1009)
 CLOSE_MISSING_EXTN = const(1010)
 CLOSE_BAD_CONDITION = const(1011)
 
-
-URL_RE = re.compile(r'ws://([A-Za-z0-9\-\.]+)(?:\:([0-9]+))?(/.+)?')
+URL_RE = re.compile(r'(wss|ws|https)://([A-Za-z0-9-\.]+)(?:\:([0-9]+))?(/.+)?')
 URI = namedtuple('URI', ('hostname', 'port', 'path'))
+
+class NoDataException(Exception):
+    pass
 
 def urlparse(uri):
     """Parse ws:// URLs"""
     match = URL_RE.match(uri)
     if match:
-        host, port, path = match.group(1), match.group(2), match.group(3)
-        if port is None:
-            port = 80
+        protocol = match.group(1)
+        host = match.group(2)
+        port = match.group(3)
+        path = match.group(4)
 
-        assert host
-        assert port
+        if port is None:
+            if protocol == 'https':
+                port = 443
+            elif protocol == 'wss':
+                port = 443
+            else:
+                port = 80
 
         return URI(host, int(port), path)
 
@@ -58,7 +66,7 @@ class Websocket:
     is_client = False
 
     def __init__(self, sock):
-        self._sock = sock
+        self.sock = sock
         self.open = True
 
     def __enter__(self):
@@ -68,7 +76,7 @@ class Websocket:
         self.close()
 
     def settimeout(self, timeout):
-        self._sock.settimeout(timeout)
+        self.sock.settimeout(timeout)
 
     def read_frame(self, max_size=None):
         """
@@ -77,7 +85,12 @@ class Websocket:
         """
 
         # Frame header
-        byte1, byte2 = struct.unpack('!BB', self._sock.read(2))
+        two_bytes = self.sock.read(2)
+
+        if not two_bytes:
+            raise NoDataException
+
+        byte1, byte2 = struct.unpack('!BB', two_bytes)
 
         # Byte 1: FIN(1) _(1) _(1) _(1) OPCODE(4)
         fin = bool(byte1 & 0x80)
@@ -88,15 +101,15 @@ class Websocket:
         length = byte2 & 0x7f
 
         if length == 126:  # Magic number, length header is 2 bytes
-            length, = struct.unpack('!H', self._sock.read(2))
+            length, = struct.unpack('!H', self.sock.read(2))
         elif length == 127:  # Magic number, length header is 8 bytes
-            length, = struct.unpack('!Q', self._sock.read(8))
+            length, = struct.unpack('!Q', self.sock.read(8))
 
         if mask:  # Mask is 4 bytes
-            mask_bits = self._sock.read(4)
+            mask_bits = self.sock.read(4)
 
         try:
-            data = self._sock.read(length)
+            data = self.sock.read(length)
         except MemoryError:
             # We can't receive this many bytes, close the socket
             if __debug__: LOGGER.debug("Frame of length %s too big. Closing",
@@ -130,27 +143,27 @@ class Websocket:
 
         if length < 126:  # 126 is magic value to use 2-byte length header
             byte2 |= length
-            self._sock.write(struct.pack('!BB', byte1, byte2))
+            self.sock.write(struct.pack('!BB', byte1, byte2))
 
         elif length < (1 << 16):  # Length fits in 2-bytes
             byte2 |= 126  # Magic code
-            self._sock.write(struct.pack('!BBH', byte1, byte2, length))
+            self.sock.write(struct.pack('!BBH', byte1, byte2, length))
 
         elif length < (1 << 64):
             byte2 |= 127  # Magic code
-            self._sock.write(struct.pack('!BBQ', byte1, byte2, length))
+            self.sock.write(struct.pack('!BBQ', byte1, byte2, length))
 
         else:
             raise ValueError()
 
         if mask:  # Mask is 4 bytes
             mask_bits = struct.pack('!I', random.getrandbits(32))
-            self._sock.write(mask_bits)
+            self.sock.write(mask_bits)
 
             data = bytes(b ^ mask_bits[i % 4]
                          for i, b in enumerate(data))
 
-        self._sock.write(data)
+        self.sock.write(data)
 
     def recv(self):
         """
@@ -166,6 +179,8 @@ class Websocket:
         while self.open:
             try:
                 fin, opcode, data = self.read_frame()
+            except NoDataException:
+                return ''
             except ValueError:
                 LOGGER.debug("Failed to read frame. Socket dead.")
                 self._close()
@@ -224,4 +239,4 @@ class Websocket:
     def _close(self):
         if __debug__: LOGGER.debug("Connection closed")
         self.open = False
-        self._sock.close()
+        self.sock.close()
