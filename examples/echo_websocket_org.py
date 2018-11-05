@@ -5,3 +5,5 @@ websocket.send(mesg + "\r\n")
 resp = websocket.recv()
 print(resp)
 assert(mesg + "\r\n" == resp)
+# close the socket to reclaim memory
+websocket.close()
