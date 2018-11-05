@@ -33,7 +33,7 @@ def connect(uri):
     sock = socket.socket()
     addr = socket.getaddrinfo(uri.hostname, uri.port)
     sock.connect(addr[0][4])
-    if uri.port == 443:
+    if uri.protocol == 'wss':
         sock = ussl.wrap_socket(sock)
 
     def send_header(header, *args):

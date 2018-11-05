@@ -2,7 +2,7 @@ AMPY := ampy
 
 DIRECTORIES = \
 	uwebsockets \
-  usocketio \
+	usocketio \
 	$(NULL)
 
 SOURCES = \
@@ -14,7 +14,7 @@ SOURCES = \
 	$(NULL)
 
 __mkdir__/% : %
-	@ampy ls | grep $< || ampy mkdir $<
+	$(AMPY) ls | grep $< || ampy mkdir $<
 
 __deploy__/%.py: %.py
 	@mkdir -p $(dir $@)

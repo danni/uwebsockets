@@ -30,8 +30,8 @@ CLOSE_TOO_BIG = const(1009)
 CLOSE_MISSING_EXTN = const(1010)
 CLOSE_BAD_CONDITION = const(1011)
 
-URL_RE = re.compile(r'(wss|ws|https)://([A-Za-z0-9-\.]+)(?:\:([0-9]+))?(/.+)?')
-URI = namedtuple('URI', ('hostname', 'port', 'path'))
+URL_RE = re.compile(r'(wss|ws)://([A-Za-z0-9-\.]+)(?:\:([0-9]+))?(/.+)?')
+URI = namedtuple('URI', ('protocol', 'hostname', 'port', 'path'))
 
 class NoDataException(Exception):
     pass
@@ -40,20 +40,18 @@ def urlparse(uri):
     """Parse ws:// URLs"""
     match = URL_RE.match(uri)
     if match:
-        protocol = match.group(1)
-        host = match.group(2)
-        port = match.group(3)
-        path = match.group(4)
+        protocol, host, port, path = [match.group(i) for i in range(1, 5)]
 
-        if port is None:
-            if protocol == 'https':
+        if protocol == 'wss':
+            if port is None:
                 port = 443
-            elif protocol == 'wss':
-                port = 443
-            else:
+        elif protocol == 'ws':
+            if port is None:
                 port = 80
+        else:
+            raise ValueError('Scheme {} is invalid'.format(protocol))
 
-        return URI(host, int(port), path)
+        return URI(protocol, host, int(port), path)
 
 
 class Websocket:
