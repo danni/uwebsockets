@@ -40,7 +40,10 @@ def urlparse(uri):
     """Parse ws:// URLs"""
     match = URL_RE.match(uri)
     if match:
-        protocol, host, port, path = [match.group(i) for i in range(1, 5)]
+        protocol = match.group(1)
+        host = match.group(2)
+        port = match.group(3)
+        path = match.group(4)
 
         if protocol == 'wss':
             if port is None:
