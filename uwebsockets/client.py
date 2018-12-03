@@ -9,6 +9,7 @@ import logging
 import usocket as socket
 import ubinascii as binascii
 import urandom as random
+import ussl
 
 from .protocol import Websocket, urlparse
 
@@ -17,7 +18,6 @@ LOGGER = logging.getLogger(__name__)
 
 class WebsocketClient(Websocket):
     is_client = True
-
 
 def connect(uri):
     """
@@ -33,10 +33,12 @@ def connect(uri):
     sock = socket.socket()
     addr = socket.getaddrinfo(uri.hostname, uri.port)
     sock.connect(addr[0][4])
+    if uri.protocol == 'wss':
+        sock = ussl.wrap_socket(sock)
 
     def send_header(header, *args):
         if __debug__: LOGGER.debug(str(header), *args)
-        sock.send(header % args + '\r\n')
+        sock.write(header % args + '\r\n')
 
     # Sec-WebSocket-Key is 16 bytes of random base64 encoded
     key = binascii.b2a_base64(bytes(random.getrandbits(8)
