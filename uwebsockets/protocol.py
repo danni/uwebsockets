@@ -188,7 +188,7 @@ class Websocket:
             except ValueError:
                 LOGGER.debug("Failed to read frame. Socket dead.")
                 self._close()
-                raise ConnectionClosed
+                raise ConnectionClosed()
 
             if not fin:
                 raise NotImplementedError()
