@@ -186,7 +186,6 @@ class Websocket:
             except NoDataException:
                 return ''
             except ValueError:
-                print("Failed to read frame. Socket dead.")
                 LOGGER.debug("Failed to read frame. Socket dead.")
                 self._close()
                 raise ConnectionClosed
