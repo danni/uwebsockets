@@ -36,6 +36,9 @@ URI = namedtuple('URI', ('protocol', 'hostname', 'port', 'path'))
 class NoDataException(Exception):
     pass
 
+class ConnectionClosed(Exception):
+    pass
+
 def urlparse(uri):
     """Parse ws:// URLs"""
     match = URL_RE.match(uri)
@@ -185,7 +188,7 @@ class Websocket:
             except ValueError:
                 LOGGER.debug("Failed to read frame. Socket dead.")
                 self._close()
-                return
+                raise ConnectionClosed()
 
             if not fin:
                 raise NotImplementedError()
