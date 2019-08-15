@@ -50,7 +50,10 @@ def connect(uri):
     send_header(b'Upgrade: websocket')
     send_header(b'Sec-WebSocket-Key: %s', key)
     send_header(b'Sec-WebSocket-Version: 13')
-    send_header(b'Origin: http://localhost')
+    send_header(b'Origin: http://{hostname}:{port}'.format(
+        hostname=uri.hostname,
+        port=uri.port)
+    )
     send_header(b'')
 
     header = sock.readline()[:-2]
