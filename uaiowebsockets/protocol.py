@@ -75,11 +75,11 @@ class Websocket:
         self.swriter = swriter
         self.open = True
 
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, exc_type, exc, tb):
-        self.close()
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
 
     def settimeout(self, timeout):
         self.sock.settimeout(timeout)
