@@ -34,7 +34,7 @@ def connect(uri):
     addr = socket.getaddrinfo(uri.hostname, uri.port)
     sock.connect(addr[0][4])
     if uri.protocol == 'wss':
-        sock = ussl.wrap_socket(sock)
+        sock = ussl.wrap_socket(sock, server_hostname=uri.hostname)
 
     def send_header(header, *args):
         if __debug__: LOGGER.debug(str(header), *args)
